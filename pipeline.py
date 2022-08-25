@@ -31,12 +31,12 @@ def filter_data(df):
         'long'
     ]
 
-    return df.drop(columns_to_drop, axis=1) # избавляемся от ненужных столбцов
+    return df.drop(columns_to_drop, axis=1) 
 
 
 def remove_outliers(df):
 
-    def calculate_outliers(data): # считаем нижнюю и верхнюю границу
+    def calculate_outliers(data): # Вычисляем границы для отсеивания выбросов по годам.
         q25 = data.quantile(0.25)
         q75 = data.quantile(0.75)
         iqr = q75 - q25
@@ -49,7 +49,7 @@ def remove_outliers(df):
     boundaries = calculate_outliers(df['year'])
 
     df.loc[df['year'] < boundaries[0], 'year'] = round(boundaries[0])
-    df.loc[df['year'] > boundaries[1], 'year'] = round(boundaries[1]) # меняем значение года на граничные
+    df.loc[df['year'] > boundaries[1], 'year'] = round(boundaries[1]) 
 
     return df
 
@@ -58,14 +58,13 @@ def create_features(df):
 
     df = df.copy()
 
-    def short_model(x): # сокращаем название модели до первого слова
+    def short_model(x): # Сокращаем название модели до первого слова.
         import pandas
         if not pandas.isna(x):
             return x.lower().split(' ')[0]
         else:
             return x
 
-    # Сокращаем название модели
     df.loc[:, 'short_model'] = df['model'].apply(short_model)
 
     # Добавляем категорию по возрасту
@@ -80,21 +79,21 @@ def main():
     X = df.drop('price_category', axis=1)
     y = df['price_category']
 
-    numerical_features = make_column_selector(dtype_include=['int64', 'float64']) # разделяем на вид фич (числ и кат)
+    numerical_features = make_column_selector(dtype_include=['int64', 'float64']) # Разделяем на числовые и категориальные фичи.
     categorical_features = make_column_selector(dtype_include=object)
 
     numerical_transformer = Pipeline(steps=[
-        ('imputer', SimpleImputer(strategy='median')), # заполняем числовые медианой
+        ('imputer', SimpleImputer(strategy='median')), # Заполняем числовые медианой.
         ('scaler', StandardScaler())
     ])
 
     categorical_transformer = Pipeline(steps=[
-        ('imputer', SimpleImputer(strategy='most_frequent')), # заполняем категориальные модой
+        ('imputer', SimpleImputer(strategy='most_frequent')), # Заполняем категориальные модой.
         ('encoder', OneHotEncoder(handle_unknown='ignore'))
     ])
 
     column_transformer = ColumnTransformer(transformers=[
-        ('numerical', numerical_transformer, numerical_features), # преобразуем для обучения модели
+        ('numerical', numerical_transformer, numerical_features), # Преобразуем для обучения моделей.
         ('categorical', categorical_transformer, categorical_features)
     ])
 
@@ -105,7 +104,7 @@ def main():
         ('column_transformer', column_transformer)
     ])
 
-    models = [ # наши модели
+    models = [ # Используемые модели.
         LogisticRegression(solver='liblinear'),
         RandomForestClassifier(),
         SVC()
@@ -113,7 +112,7 @@ def main():
 
     best_score = .0
     best_pipe = None
-    for model in models:
+    for model in models: # Поиск лучшей модели.
 
         pipe = Pipeline([
             ('preprocessor', preprocessor),
@@ -124,11 +123,11 @@ def main():
         print(f'model: {type(model).__name__}, acc_mean: {score.mean():.4f}, acc_std: {score.std():.4f}')
         if score.mean() > best_score:
             best_score = score.mean()
-            best_pipe = pipe # Выбираем лучшую модель
+            best_pipe = pipe 
 
     print(f'best model: {type(best_pipe.named_steps["classifier"]).__name__}, accuracy: {best_score:.4f}')
 
-    best_pipe.fit(X, y) # записываем её в фаил
+    best_pipe.fit(X, y) # Записываем лучшую модель в pickle фаил.
     with open('model/cars_pipe.pkl', 'wb') as file:
         dill.dump({
             'model': best_pipe,
